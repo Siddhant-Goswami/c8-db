@@ -1,0 +1,21 @@
+<style>body{font-family:sans-serif;max-width:60ch;margin:2rem auto}li{white-space:pre-wrap;margin-bottom:1rem}</style>
+<textarea id="w" rows="8" cols="60"></textarea><br>
+<button onclick="go()">Diagnose</button>
+<pre id="p"></pre>
+<h3>Saved plans</h3>
+<ol id="saved"></ol>
+<script>
+async function load(){
+  const rows = await (await fetch("/api/workflows/1/diagnoses")).json();
+  saved.replaceChildren(...rows.map(row => Object.assign(document.createElement("li"), {textContent: row.plan})));
+}
+async function go(){
+  p.textContent = "Thinking...";
+  const r = await fetch("/api/diagnose", {method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({workflow: w.value})});
+  p.textContent = r.ok ? (await r.json()).plan : `Error ${r.status}: ${await r.text()}`;
+  load();
+}
+load();
+</script>

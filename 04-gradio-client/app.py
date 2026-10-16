@@ -1,7 +1,10 @@
+import os
+
 import gradio as gr
 import requests
 
-URL = "https://YOUR-APP.vercel.app/api/diagnose"
+# Local server by default. For the live one: API_URL=https://<app>.vercel.app/api/diagnose
+URL = os.environ.get("API_URL", "http://127.0.0.1:8000/api/diagnose")
 
 
 def diagnose(workflow):
