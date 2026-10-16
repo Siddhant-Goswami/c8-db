@@ -66,7 +66,7 @@ http POST https://<your-app>.vercel.app/api/roll name=Priya
 ## Setup
 
 ```bash
-pip install fastapi uvicorn requests gradio supabase httpie
+pip install fastapi uvicorn requests gradio "supabase>=2.33" httpie
 npm i -g vercel && vercel login
 cp .env.example .env
 set -a; source .env; set +a
@@ -229,5 +229,5 @@ Rules: use httpie before the SDK. Keep keys out of Git, HTML and screenshots. As
 ## Flags
 
 - **Vercel:** the file system is read-only except for `/tmp`, and a cold start takes about 1 s. If `/` hits the function instead of `public/index.html`, add a `vercel.json` rewrite.
-- **Supabase:** free projects pause after 7 idle days. `supabase` is pinned in `requirements.txt`.
-- **Groq:** the free tier allows 30 requests per minute. Check the model name (`llama-3.3-70b-versatile`) on the day.
+- **Supabase:** free projects pause after 7 idle days. New `sb_secret_...` keys need `supabase>=2.33`; older versions fail with `Invalid API key`. Version 2.33.0 is pinned in `requirements.txt`.
+- **Groq:** the free tier allows 30 requests per minute. Check the model name (`openai/gpt-oss-120b`) on the day.
