@@ -19,12 +19,6 @@ create table diagnoses (
   created_at timestamptz default now()
 );
 
-create table roll (
-  id bigint generated always as identity primary key,
-  name text,
-  created_at timestamptz default now()
-);
-
 insert into users (name) values ('Aarav');
 insert into workflows (user_id, description) values (1, 'Script Monday, shoot Tuesday, edit until Sunday, post late.');
 

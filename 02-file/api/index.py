@@ -1,13 +1,11 @@
 import os
+from datetime import datetime
 
 import requests
 from fastapi import FastAPI
 from pydantic import BaseModel
-from supabase import create_client
 
 PROMPT = "Diagnose this creator workflow and give a short numbered plan:\n\n"
-
-supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_KEY"])
 
 
 def diagnose(workflow: str) -> str:
@@ -26,24 +24,16 @@ class WorkflowIn(BaseModel):
     workflow: str
 
 
-class NameIn(BaseModel):
-    name: str
-
-
 @app.post("/api/diagnose")
 def diagnose_route(body: WorkflowIn):
+    memory = open("memory.txt").read()
     plan = diagnose(body.workflow)
-    supabase.table("diagnoses").insert({"workflow_id": 1, "plan": plan, "tone": "plain"}).execute()
+    line = f"{datetime.now()} | {body.workflow} | {plan}".replace("\n", " ")
+    open("memory.txt", "w").write(memory + line + "\n")
     return {"plan": plan}
 
 
-@app.get("/api/workflows/{workflow_id}/diagnoses")
-def list_diagnoses(workflow_id: int):
-    return supabase.table("diagnoses").select("*") \
-        .eq("workflow_id", workflow_id).order("created_at").execute().data
+@app.get("/api/plans")
+def plans():
+    return open("memory.txt").read().splitlines()
 
-
-@app.post("/api/roll")
-def roll(body: NameIn):
-    supabase.table("roll").insert({"name": body.name}).execute()
-    return {"name": body.name}
