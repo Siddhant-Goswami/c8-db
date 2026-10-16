@@ -1,0 +1,12 @@
+<style>body{font-family:sans-serif;max-width:60ch;margin:2rem auto}</style>
+<textarea id="w" rows="8" cols="60"></textarea><br>
+<button onclick="go()">Diagnose</button>
+<pre id="p"></pre>
+<script>
+async function go(){
+  const r = await fetch("/api/diagnose", {method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({workflow: w.value})});
+  p.textContent = (await r.json()).plan;
+}
+</script>
