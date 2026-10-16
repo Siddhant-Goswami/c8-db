@@ -68,9 +68,14 @@ http POST https://<your-app>.vercel.app/api/roll name=Priya
 ```bash
 pip install fastapi uvicorn requests gradio supabase httpie
 npm i -g vercel && vercel login
-export GROQ_API_KEY=gsk_...
-export SUPABASE_URL=https://<project>.supabase.co
-export SUPABASE_SERVICE_KEY=...
+cp .env.example .env
+set -a; source .env; set +a
+```
+
+Fill in `.env` at the repo root. Git ignores it, and because it sits outside the step folders, `vercel` never uploads it. `source` loads it into your shell for the local runs. To push it to a linked Vercel project, run this from inside that step's folder:
+
+```bash
+while IFS== read -r k v; do printf %s "$v" | vercel env add "$k" production; done < ../.env
 ```
 
 ## Part 1 · Pay the key debt (0 to 30)
@@ -94,7 +99,7 @@ http POST :8000/api/diagnose workflow="I edit until Sunday"
 open http://127.0.0.1:8000/docs
 
 vercel link
-vercel env add GROQ_API_KEY
+while IFS== read -r k v; do printf %s "$v" | vercel env add "$k" production; done < ../.env
 vercel --prod
 http POST https://<app>.vercel.app/api/diagnose workflow="I edit until Sunday"
 ```
@@ -173,8 +178,8 @@ There are two keys:
 
 ```bash
 cd 08-supabase-api
-vercel env add SUPABASE_URL
-vercel env add SUPABASE_SERVICE_KEY
+vercel link
+while IFS== read -r k v; do printf %s "$v" | vercel env add "$k" production; done < ../.env
 vercel --prod
 ```
 
