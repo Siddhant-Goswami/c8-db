@@ -1,42 +1,53 @@
 # Lecture 7: A Database Is a Machine at an Address
 
-Deploy an API, try to remember with a file, watch it break, then remember with a database.
+Aarav's plan survives a refresh and a redeploy. The page that serves it is nothing but HTML, CSS and one fetch.
 
 **Principle:** a database is a machine at an address. SQL is its package.
 
-| Step | Folder | Adds | Lesson |
+| Step | Files | Adds | Lesson |
 |---|---|---|---|
-| 01 | `01-api` | FastAPI + Groq on Vercel | The key lives on your server, not in the browser |
-| 02 | `02-file` | Save plans to `memory.txt` | Breaks on Vercel: read-only file system |
-| 03 | `03-db` | Save plans to Supabase | Survives refreshes and redeploys |
-| 04 | `04-page` | One HTML page with one fetch | The browser only asks; no key in the network tab |
+| 01 | `01-leak/index.html` | Browser calls Groq directly | The key shows in the Network tab |
+| 02 | `02-function/diagnose.py` | Just the function, in the terminal | The process was never the UI |
+| 03 | `03-fastapi/api/index.py` | The function behind FastAPI, on Vercel | The key moves to your server |
+| 04 | `04-gradio-client/app.py` | Gradio calls the live URL, no key | The client only asks |
+| 05 | `05-memory-txt/api/index.py` | Plans saved to `memory.txt` | 500 on Vercel: read-only file system |
+| 06 | `06-schema/schema.sql` | `create table` from the L6 model | The machine needs a shape |
+| 07 | `07-supabase-sdk/sdk.py` | Insert and select through the SDK | The SDK hides the URL and headers |
+| 08 | `08-supabase-api/api/index.py` | The server inserts and selects rows | Survives redeploys |
+| 09 | `09-html-client/public/index.html` | One fetch replaces Gradio | No key in the browser |
+
+**Steps 01–05 need no database.** They only need `GROQ_API_KEY`. Supabase starts at step 06.
 
 ## Setup
 
 ```bash
-pip install fastapi uvicorn requests "supabase>=2.33" httpie
+pip install fastapi uvicorn requests gradio "supabase>=2.33" httpie
 npm i -g vercel && vercel login
-cp .env.example .env          # fill in your keys
+cp .env.example .env          # GROQ_API_KEY is enough until step 06
 set -a; source .env; set +a
 ```
 
-Each folder deploys as its own Vercel project. From inside a folder:
+## 01 · The leak
+
+Paste a key into `01-leak/index.html`, open it, then Inspect → Network → send. The `Authorization` header shows the key. Whose machine? Whose key?
+
+## 02 · Just the function
 
 ```bash
-vercel link
-while IFS== read -r k v; do printf %s "$v" | vercel env add "$k" production; done < ../.env
-vercel --prod
+python 02-function/diagnose.py
 ```
 
-## 01 · Deploy the API
+## 03 · Put it on your server
 
 ```bash
-cd 01-api
+cd 03-fastapi
 uvicorn api.index:app --reload
 http POST :8000/api/diagnose workflow="I edit until Sunday"
-```
 
-Open `/docs`, then deploy and run the same POST against `https://<app>.vercel.app`.
+vercel link
+printf %s "$GROQ_API_KEY" | vercel env add GROQ_API_KEY production
+vercel --prod
+```
 
 | Dial | Value |
 |---|---|
@@ -45,36 +56,35 @@ Open `/docs`, then deploy and run the same POST against `https://<app>.vercel.ap
 | Key | none today (L8) |
 | Package | `{"workflow"}` in, `{"plan"}` out |
 
-## 02 · Connect a file
+To try the step 09 page now, without a database, run `cp -r ../09-html-client/public .` and then `vercel --prod`.
+
+## 04 · Gradio becomes a client
+
+Set `URL` in `04-gradio-client/app.py` to your live URL and run it locally. The key lives on the machine that spends the money.
+
+## 05 · The file dies
 
 ```bash
-cd 02-file
+cd 05-memory-txt
 uvicorn api.index:app --reload
 http POST :8000/api/diagnose workflow="one"
 http :8000/api/plans
 ```
 
-It works locally. Deploy it and POST again: **500, read-only file system**. A Vercel function has no disk you own.
+Locally it works. Deploy it and POST again: **500, read-only file system**. Locally, two simultaneous POSTs both return 200, but only one plan is saved.
 
-Locally, have two people POST at the same moment. Both get 200, but only one plan is saved: each request read the old file, and the last write wins.
+A real store must survive the server being thrown away, take many writers, and answer "every plan for workflow 1, oldest first".
 
-What a real store must do:
-1. Survive the server being thrown away.
-2. Take many writers without losing one.
-3. Answer "every plan for workflow 1, oldest first" without reading everything.
+## 06 · Give the machine a shape
 
-## 03 · Connect a database
-
-1. Create a Supabase project. Settings → API gives you one URL and a secret key.
-2. Run `03-db/schema.sql` in the SQL editor.
-3. Deploy `03-db`.
+Create a Supabase project and add `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` to `.env`. A POST before any table exists fails with `relation does not exist`:
 
 ```bash
-http POST https://<app>.vercel.app/api/diagnose workflow="I edit until Sunday"
-http https://<app>.vercel.app/api/workflows/1/diagnoses
+http POST $SUPABASE_URL/rest/v1/diagnoses apikey:$SUPABASE_SERVICE_KEY \
+  "Authorization:Bearer $SUPABASE_SERVICE_KEY" workflow_id:=1 plan="Batch your edits." tone=plain
 ```
 
-Redeploy, then GET again. The plan is still there.
+Run `06-schema/schema.sql` in the SQL editor, then POST again: 201.
 
 | SQL | L6 model |
 |---|---|
@@ -84,16 +94,34 @@ Redeploy, then GET again. The plan is still there.
 | `references` | pointer |
 | `default now()` | the `memory.txt` timestamp |
 
-`workflow_id = 1` is hardcoded on purpose; L8 fixes it. The secret key bypasses every lock, so it lives only in server env vars.
-
-## 04 · Add the page
+## 07 · The cushion
 
 ```bash
-cp -r 04-page/public 03-db/
-cd 03-db && vercel --prod
+python 07-supabase-sdk/sdk.py
 ```
 
-Open the URL, type a workflow, get a plan. The page and the API are on the same origin, so there's no CORS. Open Network: the only request goes to your URL, and it carries no key.
+These are the same calls as the httpie request above. The SDK hides the URL and the headers.
+
+## 08 · The server remembers
+
+```bash
+cd 08-supabase-api
+vercel link
+while IFS== read -r k v; do printf %s "$v" | vercel env add "$k" production; done < ../.env
+vercel --prod
+http https://<app>.vercel.app/api/workflows/1/diagnoses
+```
+
+`workflow_id = 1` is hardcoded on purpose; L8 fixes it. The service key stays in server env vars only.
+
+## 09 · Rip off Gradio
+
+```bash
+cp -r 09-html-client/public 08-supabase-api/
+cd 08-supabase-api && vercel --prod
+```
+
+The page and the API share one origin, so there's no CORS. In Network, the only request goes to your URL, and it carries no key.
 
 ## Done equals
 
