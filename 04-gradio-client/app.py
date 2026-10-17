@@ -1,14 +1,10 @@
-import os
+import requests, gradio as gr
 
-import gradio as gr
-import requests
+def diagnose(message, history):
+    r = requests.post(                                   # ACTION
+        "http://127.0.0.1:8000/api/diagnose",            # ADDRESS
+        json={"workflow": message }                     # PAYLOAD
+    )
+    return r.json()["plan"]
 
-# Local server by default. For the live one: API_URL=https://<app>.vercel.app/api/diagnose
-URL = os.environ.get("API_URL", "http://127.0.0.1:8000/api/diagnose")
-
-
-def diagnose(workflow):
-    return requests.post(URL, json={"workflow": workflow}).json()["plan"]
-
-
-gr.Interface(diagnose, gr.Textbox(lines=8, label="Workflow"), gr.Textbox(label="Plan")).launch()
+gr.ChatInterface(fn=diagnose).launch()
